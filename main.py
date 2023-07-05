@@ -1,23 +1,17 @@
 import csv
 import requests
 from bs4 import BeautifulSoup
-from datetime import datetime
+import os
 
 def get_data(url):
     req = requests.get(url)
-    with open("projects.html", "w", encoding="utf-8") as file:
-        file.write(req.text)
-
-    with open("projects.html", encoding="utf8") as file:
-        src = file.read()
-    return src
+    return req.text
 
 def get_phones_and_names(src):
     soup = BeautifulSoup(src, 'html.parser')
     phone_elements = soup.find_all('span', class_='protectedNumber')
 
-    phones = []
-    names = []
+    data = []
 
     for element in phone_elements:
         phone = element.get('title', 'none')
@@ -30,10 +24,9 @@ def get_phones_and_names(src):
                 break
             prev_sibling = prev_sibling.previous_sibling
 
-        phones.append(phone)
-        names.append(name)
+        data.append({'phone': phone, 'name': name})
 
-    return names, phones
+    return data
 
 def get_category_id(src):
     soup = BeautifulSoup(src, 'html.parser')
@@ -53,48 +46,50 @@ def get_descriptions(src):
     descriptions = [element.text.strip() for element in description_elements]
     return descriptions
 
-def save_to_csv(names, phones, categories, titles, descriptions):
-    data = zip(names, phones, categories, titles, descriptions)
-    
-    now = datetime.now()
-    timestamp = now.strftime("%d_%m_%Y_%H_%M_%S")
-    filename = f"data_{timestamp}.csv"
-    
-    try:
-        with open("data.csv", "x"):
-            pass
-        file_exists = False
-    except FileExistsError:
-        file_exists = True
-    
-    if file_exists:
-        with open(filename, "a", encoding="utf-8", newline="") as file:
-            writer = csv.writer(file, delimiter=";")
-            writer.writerow(["name", "phone", "category", "title", "description"])
-            writer.writerows(data)
-    else:
-        with open("data.csv", "a", encoding="utf-8", newline="") as file:
-            writer = csv.writer(file, delimiter=";")
-            writer.writerow(["name", "phone", "category", "title", "description"])
-            writer.writerows(data)
+def get_image_urls(src):
+    soup = BeautifulSoup(src, 'html.parser')
+    thumbs_elements = soup.find_all('div', class_='thumbs')
+    image_urls = []
 
+    for element in thumbs_elements:
+        image_elements = element.find_all('img')
+        for img in image_elements:
+            if 'src' in img.attrs:
+                image_url = img['src']
+                image_urls.append(image_url)
+
+    return image_urls
+
+def save_to_csv(data, categories, titles, descriptions, image_urls):
+    with open("data.csv", "a", encoding="utf-8", newline="") as file:
+        writer = csv.writer(file)
+        if file.tell() == 0:
+            writer.writerow(["Name", "Phone", "Category", "Title", "Description", "Image URL", "ID"])
+
+        for i in range(len(data)):
+            if i < len(image_urls):
+                row = [data[i]['name'], data[i]['phone'], categories[i], titles[i], descriptions[i], image_urls[i], 992]
+            else:
+                row = [data[i]['name'], data[i]['phone'], categories[i], titles[i], descriptions[i], 'None', 992]
+            writer.writerow(row)
 def main():
+    if os.path.exists("data.csv"):
+        os.remove("data.csv")
+
     for i in range(1, 101):
         url = f'http://jerdesh.ru/search/iPage,{i}'
         src = get_data(url)
-        names, phones = get_phones_and_names(src)
+        data = get_phones_and_names(src)
         categories = get_category_id(src)
         titles = get_titles(src)
         descriptions = get_descriptions(src)
+        image_urls = get_image_urls(src)
 
         print(f"Page {i}:")
-        print("Phones:")
-        for phone in phones:
-            print(phone)
 
-        print("Names:")
-        for name in names:
-            print(name)
+        print("Name and phone:")
+        for item in data:
+            print(item['name'], item['phone'])
 
         print("Categories:")
         for category in categories:
@@ -107,9 +102,13 @@ def main():
         print("Descriptions:")
         for description in descriptions:
             print(description)
-        print()
 
-        save_to_csv(names, phones, categories, titles, descriptions)
+        print("Image URLs:")
+        for url in image_urls:
+            print(url)
+
+        print()
+        save_to_csv(data, categories, titles, descriptions, image_urls)
 
 if __name__ == '__main__':
     main()
