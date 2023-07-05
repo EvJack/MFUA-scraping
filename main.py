@@ -64,7 +64,7 @@ def save_to_csv(data, categories, titles, descriptions, image_urls):
     with open("data.csv", "a", encoding="utf-8", newline="") as file:
         writer = csv.writer(file)
         if file.tell() == 0:
-            writer.writerow(["Name", "Phone", "Category", "Title", "Description", "Image URL", "ID"])
+            writer.writerow(["Name", "Phone", "Category", "Title", "Description", "Image URL", "City_ID"])
 
         for i in range(len(data)):
             if i < len(image_urls):
