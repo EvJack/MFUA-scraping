@@ -56,6 +56,8 @@ def get_image_urls(src):
         for img in image_elements:
             if 'src' in img.attrs:
                 image_url = img['src']
+                if "_thumbnail" in image_url:
+                    image_url = image_url.replace("_thumbnail", "")
                 image_urls.append(image_url)
 
     return image_urls
