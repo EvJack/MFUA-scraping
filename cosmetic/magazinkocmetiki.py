@@ -38,6 +38,10 @@ def get_product_data(href):
 
     image_tag = soup.find('img', title=True, alt=True)
     image_urls = image_tag['src'] if image_tag and 'src' in image_tag.attrs else ''
+    if "/cache/" in image_urls:
+        image_urls = image_urls.replace("/cache", "")
+    if "-380x380" in image_urls:
+        image_urls = image_urls.replace("-380x380", "")
 
     description_div = soup.find('div', id='tab-description')
     descriptions = description_div.get_text(strip=True) if description_div else ''
@@ -53,25 +57,31 @@ def get_product_data(href):
 
     return article, categorys, subcategorys, subsubcategorys, names, image_urls, descriptions, prices
 
-def save_to_csv(data_list):
+def save_to_csv(data_list, href_list):
     with open("result/result.csv", "a", encoding="utf-8", newline="") as file:
-        writer = csv.writer(file)
+        writer = csv.writer(file, delimiter=";")
         if file.tell() == 0:
-            writer.writerow(["Артукул", "Категория", "Подкатегория", "подподкатегория", "Название товара", "Image URL", "Описание", "Цена"])
+            # Include "Ссылка откуда спарсировано" (Source URL) in the header
+            writer.writerow(["Артикул", "Категория", "Подкатегория", "подподкатегория", "Название товара", "Image URL", "Описание", "Цена", "Ссылка откуда спарсировано"])
 
-        writer.writerows(data_list)
+        # Zip the data_list and href_list together to iterate through both lists simultaneously
+        for data, href in zip(data_list, href_list):
+            # Append the URL (href) from href_list to the data row
+            data_row = data + (href,)
+            writer.writerow(data_row)
 
 def main():
     if not os.path.exists("result"):
         os.mkdir("result")
 
-    if os.path.exists("result/data_job.csv"):
-        os.remove("result/data_job.csv")
+    if os.path.exists("result/result.csv"):
+        os.remove("result/result.csv")
 
     data_list = []
+    href_list = []
 
     for i in range(1, 2):
-        url = f'https://magazinkocmetiki.com/index.php?route=product/search&limit=5220&page={i}'
+        url = f'https://magazinkocmetiki.com/index.php?route=product/search&limit=4730&page={i}'
         src = get_data(url)
         hrefs = get_product(src)
 
@@ -79,12 +89,13 @@ def main():
         print("Product hrefs:")
         for href in hrefs:
             if re.search(r'/\d+', href):
+                href_list.append(href)
                 print(href)
                 data = get_product_data(href)
                 if data is not None:
                     data_list.append(data)
 
-    save_to_csv(data_list)
+    save_to_csv(data_list, href_list)
 
 if __name__ == '__main__':
     main()
